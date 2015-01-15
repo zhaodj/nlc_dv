@@ -15,6 +15,9 @@ const (
 	recordSeparator byte = 29
 	fieldSeparator  byte = 30
 	subSeparator    byte = 31
+	RecordSeparator int32 = 29
+	FieldSeparator  int32 = 30
+	SubSeparator    int32 = 31
 )
 
 type Reader struct {
@@ -42,6 +45,29 @@ type RecordDict struct {
 type RecordField struct {
 	Header int
 	Value  string
+}
+
+func ParseSubfield(field string, start int32) string{
+    r := []rune(field)
+    i, j := 2, 2
+    for{
+        if j > i{
+            if r[j] == SubSeparator || r[j] == FieldSeparator{
+                break
+            }
+            j++
+        }else if r[i] == SubSeparator && r[i+1] == start{
+            i += 2
+            j = i + 1
+        }else{
+            i++
+            j++
+        }
+    }
+    if j > i{
+        return string(r[i:j])
+    }
+    return ""
 }
 
 func NewReader(r io.Reader) *Reader {

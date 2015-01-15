@@ -7,10 +7,42 @@ import (
 	"os"
 )
 
+type Doc struct{
+    Year int
+    Name string
+    Terms []string
+}
+
+type DataStore struct{
+    tn int
+    dn int
+    Lexicon map[string]int
+    Docs map[int]*Doc
+}
+
 func check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func convert(r *marc.Record) (doc *Doc){
+    doc = &Doc{}
+    i := 0
+    for _, v := range r.Field{
+        switch v.Header{
+        case 100:
+            i++
+        case 200:
+            i++
+        case 606:
+            i++
+        }
+    }
+    if i < 3{
+        return nil
+    }
+    return doc
 }
 
 func readFile(fp string) {
