@@ -29,6 +29,7 @@ type Record struct {
 	Label *RecordLabel
 	Dict  []*RecordDict
 	Field []*RecordField
+    Orig string
 }
 
 type RecordLabel struct {
@@ -115,13 +116,29 @@ func (r *Reader) Read() (record *Record, err error) {
 	return record, nil
 }
 
+func (r *Reader) readLine()(line []byte, err error){
+    line = []byte{}
+    for{
+        l, err := r.r.ReadBytes('\n')
+        if err != nil {
+            return nil, err
+        }
+        line = append(line, l...)
+        if l[len(l)-2] == '\r'{
+            break
+        }
+    }
+    return line, nil
+}
+
 func (r *Reader) parseRecord() (record *Record, err error) {
 	r.line++
 	record = &Record{}
-	line, err := r.r.ReadBytes('\n')
-	if err != nil {
-		return nil, err
-	}
+    line, err := r.readLine()
+    if err != nil{
+        return nil, err
+    }
+    record.Orig, _ = decode(line)
 	record.Label, err = r.parseLabel(line)
 	if err != nil {
 		return nil, err

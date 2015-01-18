@@ -1,0 +1,39 @@
+*{
+    margin:0;
+    padding:0;
+}
+body{
+    margin:0;
+}
+#timeline{
+    overflow-x:auto;
+    overflow-y:hidden;
+}
+.axis line{
+    fill:none;
+    stroke:#000;
+    shape-rendering:crispEdges;
+}
+.axis path{
+    fill:none;
+    stroke:#000;
+    shape-rendering:crispEdges;
+}
+path.line{
+    fill:none;
+    stroke:#666;
+    stroke-width:2px;
+}
+.marker line{
+    stroke:#666;
+    stroke-width:1px;
+}
+.marker .line-up{
+    stroke-dasharray:1px;
+}
+.marker text{
+    text-anchor:middle;
+}
+.word-cloud text{
+    cursor:pointer;
+}
