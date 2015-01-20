@@ -37,3 +37,29 @@ path.line{
 .word-cloud text{
     cursor:pointer;
 }
+#bookList{
+    padding:10px;
+}
+.book-item .name, .book-item i{
+    padding-right:1em;
+}
+.book-item{
+    margin-bottom:1em;
+}
+.book-item p, .book-item ul{
+    margin-bottom:0.6em;
+}
+ul.words{
+    overflow:auto;
+    list-style-type:none;
+}
+.words li{
+    float:left;
+    margin-right:0.6em;
+    background-color:#ffbb78;
+    color:#fff;
+    border-radius:3px;
+    font-size:0.8em;
+    line-height:1em;
+    padding:5px;
+}

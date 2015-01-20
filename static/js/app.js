@@ -9,7 +9,7 @@
 
     function addMarker(d, svg, x, y, i){
         var radius = 4,
-            xPos = x(i) - radius,
+            xPos = Math.round(x(i)) + 0.5 - radius,
             yPos = y(d.quantity) - radius,
             yZeroPos = height - yPos,
             yKeywordPos = yZeroPos + (i % 5 + 1) * 24;
@@ -52,12 +52,12 @@
         d3.json('search.json?word=' + word,function(err, data){
             d3.select('#bookList ul').selectAll('li').remove();
             var e = d3.select('#bookList ul').selectAll('li').data(data);
-            e.enter().append('li').html(function(d,i){
+            e.enter().append('li').attr('class','book-item').html(function(d,i){
                 var words = '';
                 for(var i = 0; i < d.terms.length; i++){
                     words += '<li>' + d.terms[i] + '</li>'
                 }
-                return '<p><span class="name">' + d.name + '</span><i class="year">' + d.year + '</i></p>' +
+                return '<p><span class="name">' + d.name + '</span><i class="year">' + d.year + '</i><span class="author">' + d.author + '</span></p>' +
                     '<ul class="words">' + words + '</ul>' +
                     '<p class="desc">' + d.desc + '</p>';
             });
