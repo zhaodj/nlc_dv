@@ -4,6 +4,17 @@ type Searcher struct {
 	index map[int][]int
 }
 
+type Field struct {
+	Indexed bool
+	Name    string
+	Value   interface{}
+}
+
+type Document struct {
+	id     int
+	fields []*Field
+}
+
 func NewSearcher() *Searcher {
 	m := map[int][]int{}
 	return &Searcher{m}
