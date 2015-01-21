@@ -9,13 +9,19 @@
         <script src="/js/d3.layout.cloud.js"></script>
     </head>
     <body>
-        <section id="timeline"></section>
+        <section id="timeline">
+            <div class="toolbox">
+                <input id="tlScale" type="range" min="20" max="100" step="5" value="40"/>
+            </div>
+            <div class="wrapper">
+            </div>
+        </section>
         <section id="keywords"></section>
         <section id="bookList">
             <header>
-                <form>
+                <form class="search">
                     <input type="text" name="word" placeholder="关键词"/>
-                    <input type="submit" value="搜索"/>
+                    <button type="submit">搜索</button>
                 </form>
             </header>
             <ul>

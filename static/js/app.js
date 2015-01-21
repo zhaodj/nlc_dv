@@ -1,4 +1,5 @@
 (function(){
+    var timelineData;
     var margin = {top:40, right:40, bottom:40, left:40};
     var kWidth = document.body.offsetWidth - margin.left - margin.right;
     var height = 300 - margin.top;
@@ -103,8 +104,10 @@
         .start();
     }
 
-    d3.json('data.json',function(error, data){
-        var width = data.length*40;
+    function drawTimeline(data){
+        d3.selectAll('#timeline svg').remove();
+        var scale = parseInt(d3.select('#tlScale').property('value'));
+        var width = data.length * scale;
         var x = d3.scale.linear().range([0, width]),
             y = d3.scale.linear().range([height,0]);
         var xAxis = d3.svg.axis().scale(x).orient('bottom').innerTickSize(0),
@@ -114,15 +117,12 @@
             .x(function(d,i){return x(i);})
             .y(function(d){return y(d.quantity);});
 
-        if(error){
-            return console.warn(error);
-        }
         x.domain([0, data.length-1]);
         y.domain([0, d3.max(data, function(d){return d.quantity;})]).nice();
         xAxis.ticks(data.length).tickFormat(function(d){
             return data[d].year;
         });
-        var svg = d3.select('#timeline').append('svg')
+        var svg = d3.select('#timeline .wrapper').append('svg')
             .attr('width', width + margin.left + margin.right)
             .attr('height', height + downHeight + margin.top + margin.bottom)
             .append('g')
@@ -145,11 +145,25 @@
         data.forEach(function(d, i){
             addMarker(d, svg, x, y, i);
         });
+    }
+
+    d3.json('data.json',function(error, data){
+        if(error){
+            return console.warn(error);
+        }
+        timelineData = data;
+        drawTimeline(timelineData);
     });
 
     d3.select('#bookList form').on('submit',function(e){
         d3.event.preventDefault();
         var word = d3.select(this).select('input[name=word]').property('value');
         search(word);
+    });
+
+    d3.select('#tlScale').on('change',function(){
+        if(timelineData){
+            drawTimeline(timelineData);
+        }
     });
 })();
