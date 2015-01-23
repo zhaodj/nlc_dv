@@ -52,3 +52,11 @@ func (s *Searcher) Get(term int) ([]int, bool) {
 	v, exists := s.index[term]
 	return v, exists
 }
+
+func (s *Searcher) Add(doc *Document) {
+
+}
+
+func (s *Searcher) Find() []*Document {
+	return nil
+}
