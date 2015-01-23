@@ -62,6 +62,11 @@
                     '<ul class="words">' + words + '</ul>' +
                     '<p class="desc">' + d.desc + '</p>';
             });
+            d3.selectAll('#bookList .book-item li').on('click',function(){
+                var text = d3.select(this).text();
+                d3.select('#bookList form input[name=word]').property('value', text);
+                search(text);
+            });
         });
     }
 

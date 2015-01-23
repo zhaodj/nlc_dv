@@ -11,7 +11,7 @@ input,button{
     font-size:1em;
     line-height:1.2em;
     vertical-align:middle;
-    padding:6px;
+    padding:3px 6px;
     border:1px solid #ccc;
     background-color:#fff;
 }
@@ -60,9 +60,8 @@ path.line{
 #bookList{
     padding:10px;
 }
-.search input,.search button{
-    padding:3px;
-    height:1.6em;
+#bookList header{
+    margin-bottom:30px;
 }
 .book-item .name, .book-item i{
     padding-right:1em;
@@ -86,4 +85,5 @@ ul.words{
     font-size:0.8em;
     line-height:1em;
     padding:5px;
+    cursor:pointer;
 }
