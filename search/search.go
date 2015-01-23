@@ -15,6 +15,15 @@ type Document struct {
 	fields []*Field
 }
 
+type Term struct {
+	Field string
+	Value string
+}
+
+type IndexItem struct {
+	docs []int
+}
+
 func NewSearcher() *Searcher {
 	m := map[int][]int{}
 	return &Searcher{m}
