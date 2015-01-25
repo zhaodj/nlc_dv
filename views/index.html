@@ -11,22 +11,24 @@
     <body>
         <section id="timeline">
             <div class="toolbox">
-                <input id="tlScale" type="range" min="20" max="100" step="5" value="40"/>
+                <label>间距调整:</label><input id="tlScale" type="range" min="20" max="100" step="5" value="40"/>
             </div>
             <div class="wrapper">
             </div>
         </section>
-        <section id="keywords"></section>
-        <section id="bookList">
-            <header>
-                <form class="search">
-                    <input type="text" name="word" placeholder="关键词"/>
-                    <button type="submit">搜索</button>
-                </form>
-            </header>
-            <ul>
-            </ul>
-        </section>
+        <div class="row">
+            <section id="keywords" class="row-left"></section>
+            <section id="bookList" class="row-right">
+                <header>
+                    <form class="search">
+                        <input type="text" name="word" placeholder="关键词"/>
+                        <button type="submit">搜索</button>
+                    </form>
+                </header>
+                <ul>
+                </ul>
+            </section>
+        </div>
         <script src="/js/app.js"></script>
     </body>
 </html>

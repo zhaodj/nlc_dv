@@ -164,6 +164,7 @@ func convert(r *marc.Record) (doc *Doc) {
 		switch v.Header {
 		case 100:
 			y, err := parseYear(v.Value)
+			//if err != nil {
 			if err != nil || y < 1949{
 				return nil
 			}

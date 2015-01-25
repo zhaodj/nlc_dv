@@ -1,12 +1,37 @@
 (function(){
     var timelineData;
     var margin = {top:40, right:40, bottom:40, left:40};
-    var kWidth = document.body.offsetWidth - margin.left - margin.right;
+    var kWidth = 400, kHeight = 400;
     var height = 300 - margin.top;
     var downHeight = 200 - margin.bottom;
 
     var fill = d3.scale.category20(),
-        fontSize = d3.scale.sqrt().range([12,100]);
+        fontSize = d3.scale.sqrt().range([12,60]);
+
+    var kcDrawed = false, kSearched = false;
+    var words = [];
+    var layout = d3.layout.cloud()
+        .timeInterval(10)
+        .size([kWidth,kHeight])
+        .spiral('archimedean')//archimedean,rectangular
+        .padding(5)
+        .rotate(function() { return ~~(Math.random() * 2) * 90; })
+        .font("Impact")
+        .fontSize(function(d) { return fontSize(d.size); })
+        .on("end", draw);
+
+    var kSvg = d3.select("#keywords").append("svg")
+            .attr('class','word-cloud')
+            .attr("width", kWidth)
+            .attr("height", kHeight);
+    var kBg = kSvg.append("g")
+            .attr("transform", 'translate(' + kWidth/2 + ',' + kHeight/2 + ')');
+
+    var colorScale = d3.scale.linear().range([50,0]);
+
+    function calColor(quantity){
+        return 'hsl(' + colorScale(quantity) + ',100%,50%)';
+    }
 
     function addMarker(d, svg, x, y, i){
         var radius = 4,
@@ -16,12 +41,7 @@
             yKeywordPos = yZeroPos + (i % 5 + 1) * 24;
 
         var g = svg.append('g').attr('class', 'marker').attr('transform', 'translate(' + xPos + ', ' + yPos + ')');
-
-        g.append('circle')
-            .attr('class','marker-bg')
-            .attr('cx', radius)
-            .attr('cy', radius)
-            .attr('r', radius);
+        var fc = calColor(d.quantity);console.log(fc);
 
         g.append('line')
             .attr('class','line-up')
@@ -31,8 +51,10 @@
             .attr('y2',yZeroPos);
 
         g.append('text')
+            .attr('class','tip')
             .attr('x',radius)
             .attr('y',-10)
+            .attr('fill',fc)
             .text(d.quantity);
 
         g.append('line')
@@ -43,13 +65,26 @@
             .attr('y2',yKeywordPos);
 
         g.append('text')
+            .attr('class','word')
             .attr('x',radius)
             .attr('y',yKeywordPos + 14)
             .text(d.keywords[0].value)
-            .on('click',function(){addWordCloud(d.keywords)});
+            .on('click',function(){
+                addWordCloud(d.keywords);
+            });
+
+        g.append('circle')
+            .attr('class','marker-bg')
+            .attr('cx', radius)
+            .attr('cy', radius)
+            .attr('r', radius)
+            .attr('fill',fc);
+
+
     }
 
     function search(word){
+        d3.select('#bookList form input[name=word]').property('value', word);
         d3.json('search.json?word=' + word,function(err, data){
             d3.select('#bookList ul').selectAll('li').remove();
             var e = d3.select('#bookList ul').selectAll('li').data(data);
@@ -64,22 +99,17 @@
             });
             d3.selectAll('#bookList .book-item li').on('click',function(){
                 var text = d3.select(this).text();
-                d3.select('#bookList form input[name=word]').property('value', text);
                 search(text);
             });
         });
     }
 
-    function draw(words) {
-        d3.select("#keywords").append("svg")
-            .attr('class','word-cloud')
-            .attr("width", kWidth + margin.left + margin.right)
-            .attr("height", 300)
-            .append("g")
-            .attr("transform", 'translate(' + (kWidth + margin.left + margin.right)/2 + ',' + '150)')
-            .selectAll("text")
-            .data(words)
-            .enter().append("text")
+    function draw(data) {
+        words = data;
+        var text = kBg.selectAll("text")
+            .data(words);
+        text.enter().append("text")
+            .attr("transform", function(d) { return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"; })
             .style("font-size", function(d) { return d.size + "px"; })
             .style("font-family", "Impact")
             .style("fill", function(d, i) { return fill(i); })
@@ -87,26 +117,38 @@
             .attr("transform", function(d) {
                 return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
             })
-            .text(function(d) { return d.text; })
+            .style("opacity", 1e-6)
             .on('click',function(e){
-                d3.select('#bookList form input[name=word]').property('value', e.text);
                 search(e.text);
-            });
+            })
+            .transition()
+            .duration(1000)
+            .style("opacity", 1)
+            .text(function(d) { return d.text; });
+        text.exit().remove();
     }
 
     function addWordCloud(keywords){
-        d3.select('#keywords').select('.word-cloud').remove();
         fontSize.domain([keywords[keywords.length-1].count || 1, keywords[0].count])
-        d3.layout.cloud().size([kWidth, 300])
-        .words(keywords.map(function(d) {
-            return {text: d.value, size: d.count};
-        }))
-        .padding(5)
-        .rotate(function() { return ~~(Math.random() * 2) * 90; })
-        .font("Impact")
-        .fontSize(function(d) { return fontSize(d.size); })
-        .on("end", draw)
-        .start();
+        words = [];
+        layout.words(words).start();
+        layout.stop()
+            .words(keywords.map(function(d) {
+                return {text: d.value, size: d.count};
+            }))
+            .start();
+        kcDrawed = true;
+        if(!kSearched && keywords.length > 0){
+            search(keywords[0].value);
+            kSearched = true;
+        }
+    }
+
+    function autoTicks(scale,max){
+        if(scale < 30){
+            return Math.round(max/2);
+        }
+        return max;
     }
 
     function drawTimeline(data){
@@ -115,7 +157,7 @@
         var width = data.length * scale;
         var x = d3.scale.linear().range([0, width]),
             y = d3.scale.linear().range([height,0]);
-        var xAxis = d3.svg.axis().scale(x).orient('bottom').innerTickSize(0),
+        var xAxis = d3.svg.axis().scale(x).orient('bottom').innerTickSize(0).tickPadding(5),
             yAxis = d3.svg.axis().scale(y).orient('left');
 
         var line = d3.svg.line().interpolate('monotone')
@@ -124,7 +166,7 @@
 
         x.domain([0, data.length-1]);
         y.domain([0, d3.max(data, function(d){return d.quantity;})]).nice();
-        xAxis.ticks(data.length).tickFormat(function(d){
+        xAxis.ticks(autoTicks(scale, data.length)).tickFormat(function(d){
             return data[d].year;
         });
         var svg = d3.select('#timeline .wrapper').append('svg')
@@ -150,6 +192,9 @@
         data.forEach(function(d, i){
             addMarker(d, svg, x, y, i);
         });
+        if(!kcDrawed){
+            addWordCloud(data[0].keywords)
+        }
     }
 
     d3.json('data.json',function(error, data){
@@ -157,6 +202,7 @@
             return console.warn(error);
         }
         timelineData = data;
+        colorScale.domain(d3.extent(data,function(d){return d.quantity;}))
         drawTimeline(timelineData);
     });
 

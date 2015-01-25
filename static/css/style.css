@@ -14,9 +14,18 @@ input,button{
     padding:3px 6px;
     border:1px solid #ccc;
     background-color:#fff;
+    border-radius:3px;
+}
+input[type=submit],button{
+    background-color:#00ad9b;
+    color:#fff;
+}
+ul{
+    list-style-type:none;
 }
 #timeline{
     position:relative;
+    border-bottom:1px solid #a8e9e2;
 }
 #timeline .toolbox{
     position:absolute;
@@ -29,23 +38,30 @@ input,button{
     overflow-x:auto;
     overflow-y:hidden;
 }
+.toolbox label{
+    margin-right:1em;
+}
 .axis line{
     fill:none;
-    stroke:#000;
+    stroke:#bbb;
     shape-rendering:crispEdges;
 }
 .axis path{
     fill:none;
-    stroke:#000;
+    stroke:#bbb;
     shape-rendering:crispEdges;
+}
+.axis text{
+    fill:#bbb;
+    font-size:0.8em;
 }
 path.line{
     fill:none;
-    stroke:#666;
+    stroke:#00ad9b;
     stroke-width:2px;
 }
 .marker line{
-    stroke:#666;
+    stroke:#bbb;
     stroke-width:1px;
 }
 .marker .line-up{
@@ -53,6 +69,14 @@ path.line{
 }
 .marker text{
     text-anchor:middle;
+}
+.marker .word{
+    fill:#00ad9b;
+    cursor:pointer;
+}
+.marker circle{
+    stroke:#fff;
+    stroke-width:1px;
 }
 .word-cloud text{
     cursor:pointer;
@@ -63,27 +87,48 @@ path.line{
 #bookList header{
     margin-bottom:30px;
 }
+.book-item .name{
+    font-size:1.2em;
+}
+.book-item i, .book-item .author{
+    font-size:0.8em;
+}
 .book-item .name, .book-item i{
     padding-right:1em;
+    color:#444;
+}
+.book-item .desc{
+    color:#444;
 }
 .book-item{
+    padding-bottom:1em;
     margin-bottom:1em;
+    border-bottom:1px dotted #ff7f0e;
 }
 .book-item p, .book-item ul{
     margin-bottom:0.6em;
 }
 ul.words{
     overflow:auto;
-    list-style-type:none;
 }
 .words li{
     float:left;
     margin-right:0.6em;
-    background-color:#ffbb78;
+    background-color:#00ad9b;
     color:#fff;
     border-radius:3px;
     font-size:0.8em;
     line-height:1em;
     padding:5px;
     cursor:pointer;
+}
+.row .row-left{
+    margin-top:20px;
+    width:400px;
+    float:left;
+}
+.row .row-right{
+    margin-left:420px;
+    min-height:400px;
+    border-left:1px solid #a8e9e2;
 }

@@ -20,3 +20,21 @@ func TestEqual(t *testing.T) {
 		t.Error("not equal")
 	}
 }
+
+func TestSearch(t *testing.T){
+    idName := "id"
+    termsName := "terms"
+    doc1 := &Document{
+        []Field{
+            &IntField{BaseField{true,idName}, 1},&StrSliceField{BaseField{true,termsName},[]string{"中国","北京"}},
+        },
+    }
+    doc2 := &Document{
+        []Field{
+            &IntField{BaseField{true,idName}, 2},&StrSliceField{BaseField{true,termsName},[]string{"台湾","北京","上海"}},
+        },
+    }
+    searcher := NewSearcher()
+    searcher.Add(doc1)
+    searcher.Add(doc2)
+}
