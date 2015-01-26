@@ -149,6 +149,46 @@ func (q *BooleanQuery) Match(t *Term) bool {
 }
 
 func mergeShould(i1 *IndexItem, i2 *IndexItem) (res *IndexItem) {
+    ci1, ci2 := i1, i2
+    if i1.docId <= i2.docId {
+		res = i1.clone()
+        ci1 = ci1.next
+	} else {
+		res = i2.clone()
+        ci2 = ci2.next
+	}
+    res.next = nil
+    cur := res
+    for{
+        if ci1 == nil{
+            if ci2 == nil{
+                break
+            }
+            cur.next = ci2.clone()
+            break
+        }
+        if ci2 == nil{
+            cur.next = ci1.clone()
+            break
+        }
+        if ci1.docId == ci2.docId{
+            cur.next = ci1.clone()
+            cur = cur.next
+            ci1 = ci1.next
+            ci2 = ci2.next
+        }else if ci1.docId > ci2.docId{
+            cur.next = ci2.clone()
+            cur = cur.next
+            ci2 = ci2.next
+        }else{
+            cur.next = ci1.clone()
+            cur = cur.next
+            ci1 = ci1.next
+        }
+    }
+    return res
+}
+func mergeShould1(i1 *IndexItem, i2 *IndexItem) (res *IndexItem) {
 	var other *IndexItem
 	if i1.docId <= i2.docId {
 		res = i1.clone()
@@ -162,24 +202,27 @@ func mergeShould(i1 *IndexItem, i2 *IndexItem) (res *IndexItem) {
 	for {
 		if cur.docId < other.docId {
 			if cur.next == nil {
-				if other.next == nil {
-					break
-				}
 				cur = cur.clone()
-				cur.next = other.next
-				break
-			} else if other.next == nil {
+				cur.next = other
 				break
 			}
-			if cur.docId == other.docId {
-				other = other.next
-			}
-			pre = cur
-			cur = cur.next
+            pre = cur
+            cur = cur.next
 		} else if cur.docId == other.docId {
 			other = other.next
-			pre = cur
+            pre = cur
 			cur = cur.next
+            if cur == nil && other == nil{
+                break
+            }
+            if cur == nil && other != nil{
+                pre = pre.clone()
+                pre.next = other
+                break
+            }
+            if cur != nil && other == nil{
+                break
+            }
 		} else {
 			pre = pre.clone()
 			o := other.clone()
