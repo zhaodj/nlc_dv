@@ -28,6 +28,7 @@
             .attr("transform", 'translate(' + kWidth/2 + ',' + kHeight/2 + ')');
 
     var colorScale = d3.scale.linear().range([50,0]);
+    var years = [];
 
     function calColor(quantity){
         return 'hsl(' + colorScale(quantity) + ',100%,50%)';
@@ -41,7 +42,7 @@
             yKeywordPos = yZeroPos + (i % 5 + 1) * 24;
 
         var g = svg.append('g').attr('class', 'marker').attr('transform', 'translate(' + xPos + ', ' + yPos + ')');
-        var fc = calColor(d.quantity);console.log(fc);
+        var fc = calColor(d.quantity);
 
         g.append('line')
             .attr('class','line-up')
@@ -83,9 +84,11 @@
 
     }
 
-    function search(word){
+    function search(word,year){
         d3.select('#bookList form input[name=word]').property('value', word);
-        d3.json('search.json?word=' + word,function(err, data){
+        d3.select('#bookList form select[name=word]').property('value', year);
+        console.log(year);
+        d3.json('search.json?word=' + word + '&year=' + year,function(err, data){
             d3.select('#bookList ul').selectAll('li').remove();
             var e = d3.select('#bookList ul').selectAll('li').data(data);
             e.enter().append('li').attr('class','book-item').html(function(d,i){
@@ -119,7 +122,7 @@
             })
             .style("opacity", 1e-6)
             .on('click',function(e){
-                search(e.text);
+                search(e.text,'');
             })
             .transition()
             .duration(1000)
@@ -139,7 +142,7 @@
             .start();
         kcDrawed = true;
         if(!kSearched && keywords.length > 0){
-            search(keywords[0].value);
+            search(keywords[0].value,'');
             kSearched = true;
         }
     }
@@ -203,13 +206,21 @@
         }
         timelineData = data;
         colorScale.domain(d3.extent(data,function(d){return d.quantity;}))
+        years = data.map(function(d){return d.year;});
+        years.unshift("");
+        var opts = d3.select('.search select[name=year]').selectAll('option').data(years);
+        opts.enter()
+            .append('option')
+            .attr('value',function(d){return d;})
+            .text(function(d){return d;});
         drawTimeline(timelineData);
     });
 
     d3.select('#bookList form').on('submit',function(e){
         d3.event.preventDefault();
-        var word = d3.select(this).select('input[name=word]').property('value');
-        search(word);
+        var word = d3.select(this).select('input[name=word]').property('value')||'';
+        var year = d3.select(this).select('select[name=year]').property('value')||'';
+        search(word,year);
     });
 
     d3.select('#tlScale').on('change',function(){
