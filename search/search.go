@@ -149,89 +149,41 @@ func (q *BooleanQuery) Match(t *Term) bool {
 }
 
 func mergeShould(i1 *IndexItem, i2 *IndexItem) (res *IndexItem) {
-    ci1, ci2 := i1, i2
-    if i1.docId <= i2.docId {
-		res = i1.clone()
-        ci1 = ci1.next
-	} else {
-		res = i2.clone()
-        ci2 = ci2.next
-	}
-    res.next = nil
-    cur := res
-    for{
-        if ci1 == nil{
-            if ci2 == nil{
-                break
-            }
-            cur.next = ci2.clone()
-            break
-        }
-        if ci2 == nil{
-            cur.next = ci1.clone()
-            break
-        }
-        if ci1.docId == ci2.docId{
-            cur.next = ci1.clone()
-            cur = cur.next
-            ci1 = ci1.next
-            ci2 = ci2.next
-        }else if ci1.docId > ci2.docId{
-            cur.next = ci2.clone()
-            cur = cur.next
-            ci2 = ci2.next
-        }else{
-            cur.next = ci1.clone()
-            cur = cur.next
-            ci1 = ci1.next
-        }
-    }
-    return res
-}
-func mergeShould1(i1 *IndexItem, i2 *IndexItem) (res *IndexItem) {
-	var other *IndexItem
+	ci1, ci2 := i1, i2
 	if i1.docId <= i2.docId {
 		res = i1.clone()
-		other = i2
+		ci1 = ci1.next
 	} else {
 		res = i2.clone()
-		other = i1.clone()
+		ci2 = ci2.next
 	}
+	res.next = nil
 	cur := res
-	pre := res
 	for {
-		if cur.docId < other.docId {
-			if cur.next == nil {
-				cur = cur.clone()
-				cur.next = other
+		if ci1 == nil {
+			if ci2 == nil {
 				break
 			}
-            pre = cur
-            cur = cur.next
-		} else if cur.docId == other.docId {
-			other = other.next
-            pre = cur
+			cur.next = ci2.clone()
+			break
+		}
+		if ci2 == nil {
+			cur.next = ci1.clone()
+			break
+		}
+		if ci1.docId == ci2.docId {
+			cur.next = ci1.clone()
 			cur = cur.next
-            if cur == nil && other == nil{
-                break
-            }
-            if cur == nil && other != nil{
-                pre = pre.clone()
-                pre.next = other
-                break
-            }
-            if cur != nil && other == nil{
-                break
-            }
+			ci1 = ci1.next
+			ci2 = ci2.next
+		} else if ci1.docId > ci2.docId {
+			cur.next = ci2.clone()
+			cur = cur.next
+			ci2 = ci2.next
 		} else {
-			pre = pre.clone()
-			o := other.clone()
-			pre.next = o
-			o.next = cur
-			if other.next == nil {
-				break
-			}
-			other = other.next
+			cur.next = ci1.clone()
+			cur = cur.next
+			ci1 = ci1.next
 		}
 	}
 	return res
@@ -243,20 +195,24 @@ func mergeMust(i1 *IndexItem, i2 *IndexItem) (res *IndexItem) {
 	for {
 		if ci1.docId == ci2.docId {
 			if cur == nil {
-				cur = i1.clone()
+				cur = ci1.clone()
 				cur.next = nil
 				res = cur
 			} else {
-				cur.next = i1.clone()
+				cur.next = ci1.clone()
 				cur = cur.next
 				cur.next = nil
 			}
+			ci1 = ci1.next
+			ci2 = ci2.next
+		} else if ci1.docId < ci2.docId {
+			ci1 = ci1.next
+		} else if ci1.docId > ci2.docId {
+			ci2 = ci2.next
 		}
-		if ci1.next == nil || ci2.next == nil {
+		if ci1 == nil || ci2 == nil {
 			break
 		}
-		ci1 = ci1.next
-		ci2 = ci2.next
 	}
 	return res
 }

@@ -1,109 +1,112 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/codegangsta/negroni"
+	"html/template"
 	"io"
+	"net/http"
 	"nlc_dv/marc"
 	"nlc_dv/search"
 	"os"
+	"reflect"
+	"sort"
 	"strconv"
-    "github.com/codegangsta/negroni"
-    "net/http"
-    "html/template"
-    "encoding/json"
-    "sort"
 )
 
 var ds *DataStore
 
 type Doc struct {
-    Year  int   `json:"year"`
-    Name  string    `json:"name"`
-    Terms []string  `json:"terms"`
-    Desc string `json:"desc"`
-    Author string `json:"author"`
+	Id     int
+	Year   int      `json:"year"`
+	Name   string   `json:"name"`
+	Terms  []string `json:"terms"`
+	Desc   string   `json:"desc"`
+	Author string   `json:"author"`
 }
 
 type DataStore struct {
-	tn       int
-	dn       int
-	Lexicon  map[string]int
-	Docs     map[int]*Doc
-	searcher *search.Searcher
-    yearStatData []*YearStat
-    yearStatMap map[int]*YearStat
+	tn           int
+	dn           int
+	Lexicon      map[string]int
+	Docs         map[int]*Doc
+	searcher     *search.Searcher
+	yearStatData []*YearStat
+	yearStatMap  map[int]*YearStat
 }
 
-type YearStat struct{
-    Year int `json:"year,string"`
-    Quantity int `json:"quantity"`
-    Keywords []*WordCount `json:"keywords"`
-    words map[string]int
+type YearStat struct {
+	Year     int          `json:"year,string"`
+	Quantity int          `json:"quantity"`
+	Keywords []*WordCount `json:"keywords"`
+	words    map[string]int
 }
 
 type ByYear []*YearStat
 
 func (s ByYear) Len() int {
-    return len(s)
+	return len(s)
 }
 
-func (s ByYear) Swap(i, j int){
-    s[i], s[j] = s[j], s[i]
+func (s ByYear) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 func (s ByYear) Less(i, j int) bool {
-    return s[i].Year < s[j].Year
+	return s[i].Year < s[j].Year
 }
 
-type WordCount struct{
-    Value string `json:"value"`
-    Count int `json:"count"`
+type WordCount struct {
+	Value string `json:"value"`
+	Count int    `json:"count"`
 }
 
 type ByCount []*WordCount
 
 func (s ByCount) Len() int {
-    return len(s)
+	return len(s)
 }
 
-func (s ByCount) Swap(i, j int){
-    s[i], s[j] = s[j], s[i]
+func (s ByCount) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 func (s ByCount) Less(i, j int) bool {
-    return s[i].Count > s[j].Count
+	return s[i].Count > s[j].Count
 }
 
-func (y *YearStat) AddWord(word string){
-    c, e := y.words[word]
-    if e{
-        y.words[word] = c + 1
-    }else{
-        y.words[word] = 1
-    }
+func (y *YearStat) AddWord(word string) {
+	c, e := y.words[word]
+	if e {
+		y.words[word] = c + 1
+	} else {
+		y.words[word] = 1
+	}
 }
 
-func (y *YearStat) initKeywords(){
-    l := len(y.words)
-    y.Keywords = make([]*WordCount, l, l)
-    i := 0
-    for k, v := range y.words{
-        y.Keywords[i] = &WordCount{k, v}
-        i++
-    }
-    sort.Sort(ByCount(y.Keywords))
+func (y *YearStat) initKeywords() {
+	l := len(y.words)
+	y.Keywords = make([]*WordCount, l, l)
+	i := 0
+	for k, v := range y.words {
+		y.Keywords[i] = &WordCount{k, v}
+		i++
+	}
+	sort.Sort(ByCount(y.Keywords))
 }
 
 func (d *DataStore) Add(doc *Doc) {
 	d.dn++
 	d.Docs[d.dn] = doc
-    y, e := d.yearStatMap[doc.Year]
-    if !e{
-        y = &YearStat{Year:doc.Year,Quantity:1,words:map[string]int{}}
-        d.yearStatMap[doc.Year] = y
-    }else{
-        y.Quantity++
-    }
+	doc.Id = d.dn
+	y, e := d.yearStatMap[doc.Year]
+	if !e {
+		y = &YearStat{Year: doc.Year, Quantity: 1, words: map[string]int{}}
+		d.yearStatMap[doc.Year] = y
+	} else {
+		y.Quantity++
+	}
 	for _, v := range doc.Terms {
 		id, exists := d.Lexicon[v]
 		if !exists {
@@ -112,36 +115,60 @@ func (d *DataStore) Add(doc *Doc) {
 			d.Lexicon[v] = id
 		}
 		d.searcher.Put(id, d.dn)
-        y.AddWord(v)
+		y.AddWord(v)
 	}
 }
 
-func (d *DataStore) initYearStat(){
-    l := len(d.yearStatMap)
-    d.yearStatData = make([]*YearStat, l, l)
-    i := 0
-    for _, v := range d.yearStatMap{
-        v.initKeywords()
-        d.yearStatData[i] = v
-        i++
-    }
-    sort.Sort(ByYear(d.yearStatData))
+func (d *DataStore) initYearStat() {
+	l := len(d.yearStatMap)
+	d.yearStatData = make([]*YearStat, l, l)
+	i := 0
+	for _, v := range d.yearStatMap {
+		v.initKeywords()
+		d.yearStatData[i] = v
+		i++
+	}
+	sort.Sort(ByYear(d.yearStatData))
 }
 
-func (d *DataStore) Find(term string) []*Doc {
-	id, exists := d.Lexicon[term]
-	if !exists {
-		return nil
-	}
-	arr, e := d.searcher.Get(id)
-	if !e {
+func (d *DataStore) searchToDoc(docs []*search.Document) []*Doc {
+	if docs == nil {
 		return nil
 	}
 	res := []*Doc{}
-	for _, v := range arr {
-		res = append(res, d.Docs[v])
+	for _, v := range docs {
+		for _, f := range v.Fields {
+			if f.GetName() == "id" {
+				res = append(res, d.Docs[f.GetValue().(int)])
+				break
+			}
+		}
 	}
 	return res
+}
+
+func (d *DataStore) Find(term string, year string) []*Doc {
+	var q1 *search.TermQuery
+	var q2 *search.TermQuery
+	if term != "" {
+		q1 = &search.TermQuery{&search.Term{"term", term}}
+	}
+	if year != "" {
+		q2 = &search.TermQuery{&search.Term{"year", year}}
+	}
+	if q1 == nil && q2 == nil {
+		return nil
+	}
+	var q search.Query
+	if q1 == nil {
+		q = q2
+	} else if q2 == nil {
+		q = q1
+	} else {
+		q = &search.BooleanQuery{q1, q2, search.MUST}
+	}
+	fmt.Println(reflect.TypeOf(q))
+	return d.searchToDoc(d.searcher.Find(q))
 }
 
 func check(e error) {
@@ -165,48 +192,56 @@ func convert(r *marc.Record) (doc *Doc) {
 		case 100:
 			y, err := parseYear(v.Value)
 			//if err != nil {
-			if err != nil || y < 1949{
+			if err != nil || y < 1949 {
 				return nil
 			}
 			//fmt.Println(y)
 			doc.Year = y
-			i = i|1
+			i = i | 1
 		case 200:
 			doc.Name = marc.ParseSubfield(v.Value, 'a')
 			//fmt.Println(doc.Name)
-			i = i|2
+			i = i | 2
 		case 606:
 			doc.Terms = marc.ParseAllSubfield(v.Value)
 			//fmt.Println(doc.Terms)
 			if len(doc.Terms) == 0 {
 				return nil
 			}
-			i = i|4
-        case 330:
-            doc.Desc = marc.ParseSubfield(v.Value, 'a')
-            i = i|8
-        case 701:
-            if i & 16 == 0{
-                doc.Author = marc.ParseSubfield(v.Value, 'a')
-                i = i|16
-            }
+			i = i | 4
+		case 330:
+			doc.Desc = marc.ParseSubfield(v.Value, 'a')
+			i = i | 8
+		case 701:
+			if i&16 == 0 {
+				doc.Author = marc.ParseSubfield(v.Value, 'a')
+				i = i | 16
+			}
 		}
 	}
 	if (i & 7) < 7 {
-        fmt.Printf("%d %s %s\r\n",doc.Year,doc.Name,doc.Desc)
-        fmt.Println(doc.Terms)
+		fmt.Printf("%d %s %s\r\n", doc.Year, doc.Name, doc.Desc)
+		fmt.Println(doc.Terms)
 		return nil
 	}
 	return doc
 }
 
+func docForSearch(doc *Doc) *search.Document {
+	fid := &search.IntField{search.BaseField{true, "id"}, doc.Id}
+	fyear := &search.IntField{search.BaseField{true, "year"}, doc.Year}
+	fterms := &search.StrSliceField{search.BaseField{true, "term"}, doc.Terms}
+	fields := []search.Field{fid, fyear, fterms}
+	return &search.Document{fields}
+}
+
 func readFile(fp string) *DataStore {
 	searcher := search.NewSearcher()
 	ds := &DataStore{
-		searcher: searcher,
-		Lexicon:  map[string]int{},
-		Docs:     map[int]*Doc{},
-        yearStatMap: map[int]*YearStat{},
+		searcher:    searcher,
+		Lexicon:     map[string]int{},
+		Docs:        map[int]*Doc{},
+		yearStatMap: map[int]*YearStat{},
 	}
 	f, err := os.Open(fp)
 	check(err)
@@ -220,50 +255,50 @@ func readFile(fp string) *DataStore {
 		doc := convert(rc)
 		if doc != nil {
 			ds.Add(doc)
+			searcher.Add(docForSearch(doc))
 		}
 	}
-    ds.initYearStat()
+	ds.initYearStat()
 	return ds
 }
 
-func home(w http.ResponseWriter, r *http.Request){
-    t, _ := template.ParseFiles("views/index.html")
-    t.Execute(w, nil)
+func home(w http.ResponseWriter, r *http.Request) {
+	t, _ := template.ParseFiles("views/index.html")
+	t.Execute(w, nil)
 }
 
-func writeJson(w http.ResponseWriter, d interface{}){
-    b, err := json.Marshal(d)
-    if err != nil{
-        fmt.Println("json err: ", err)
-    }
-    w.Header().Set("Content-Type", "application/json")
-    w.Write(b)
+func writeJson(w http.ResponseWriter, d interface{}) {
+	b, err := json.Marshal(d)
+	if err != nil {
+		fmt.Println("json err: ", err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(b)
 }
 
-func yearJson(w http.ResponseWriter, r *http.Request){
-    fmt.Println(len(ds.yearStatData))
-    writeJson(w, ds.yearStatData)
+func yearJson(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(len(ds.yearStatData))
+	writeJson(w, ds.yearStatData)
 }
 
-func findDoc(w http.ResponseWriter, r *http.Request){
-    q := r.URL.Query()
-    writeJson(w, ds.Find(q.Get("word")))
+func findDoc(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	fmt.Println(q)
+	writeJson(w, ds.Find(q.Get("word"), q.Get("year")))
 }
-
-
 
 func main() {
-    file := os.Args[1]
-    ds = readFile(file)
+	file := os.Args[1]
+	ds = readFile(file)
 
-    mux := http.NewServeMux()
-    mux.HandleFunc("/data.json", yearJson)
-    mux.HandleFunc("/search.json",findDoc)
-    mux.HandleFunc("/", home)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/data.json", yearJson)
+	mux.HandleFunc("/search.json", findDoc)
+	mux.HandleFunc("/", home)
 
-    n := negroni.Classic()
-    s := negroni.NewStatic(http.Dir("static"))
-    n.Use(s)
-    n.UseHandler(mux)
-    n.Run(":3000")
+	n := negroni.Classic()
+	s := negroni.NewStatic(http.Dir("static"))
+	n.Use(s)
+	n.UseHandler(mux)
+	n.Run(":3000")
 }
