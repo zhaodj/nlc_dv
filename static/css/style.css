@@ -19,6 +19,7 @@ input,button,select{
 input[type=submit],button{
     background-color:#00ad9b;
     color:#fff;
+    cursor:pointer;
 }
 ul{
     list-style-type:none;
