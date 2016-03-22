@@ -17,8 +17,8 @@ CNMARC 解析及数据可视化
 
 1. 启动
 
-```
-go run app.go demo.iso
-```
+    ```
+    go run app.go demo.iso
+    ```
 
 2. 浏览器访问 `http://localhost:3000`
