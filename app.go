@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"net/url"
 )
 
 var ds *DataStore
@@ -23,7 +24,8 @@ type Doc struct {
 	Name   string   `json:"name"`
 	Terms  []string `json:"terms"`
 	Desc   string   `json:"desc"`
-	Author string   `json:"author"`
+	Author []string `json:"author"`
+	URL    string   `json:"url"`
 }
 
 type DataStore struct {
@@ -131,12 +133,12 @@ func (d *DataStore) initYearStat() {
 	sort.Sort(ByYear(d.yearStatData))
 }
 
-func (d *DataStore) searchToDoc(docs []*search.Document) []*Doc {
-	if docs == nil {
-		return nil
+func (d *DataStore) searchToDoc(sr *search.SearchResult) ([]*Doc, int) {
+	if sr == nil || sr.Docs == nil {
+		return nil, 0
 	}
 	res := []*Doc{}
-	for _, v := range docs {
+	for _, v := range sr.Docs {
 		for _, f := range v.Fields {
 			if f.GetName() == "id" {
 				res = append(res, d.Docs[f.GetValue().(int)])
@@ -144,28 +146,25 @@ func (d *DataStore) searchToDoc(docs []*search.Document) []*Doc {
 			}
 		}
 	}
-	return res
+	return res, sr.Total
 }
 
-func (d *DataStore) Find(term string, year string) []*Doc {
-	var q1 *search.TermQuery
-	var q2 *search.TermQuery
-	if term != "" {
-		q1 = &search.TermQuery{&search.Term{"term", term}}
-	}
-	if year != "" {
-		q2 = &search.TermQuery{&search.Term{"year", year}}
-	}
-	if q1 == nil && q2 == nil {
-		return nil
-	}
+func (d *DataStore) Find(term string, year string, start int, limit int) ([]*Doc, int) {
 	var q search.Query
-	if q1 == nil {
-		q = q2
-	} else if q2 == nil {
-		q = q1
-	} else {
-		q = &search.BooleanQuery{q1, q2, search.MUST}
+	if term == "" && year == ""{
+		return nil, 0
+	}
+	if term == "" && year != ""{
+		q = &search.TermPageQuery{search.TermQuery{&search.Term{"year", year}}, start, limit}
+	}else if term != "" && year == ""{
+		q = &search.TermPageQuery{search.TermQuery{&search.Term{"term", term}}, start, limit}
+	}else{
+		q = &search.BooleanQuery{
+			&search.TermQuery{&search.Term{"term", term}},
+			&search.TermQuery{&search.Term{"year", year}},
+			search.MUST,
+			start,
+			limit}
 	}
 	fmt.Println(reflect.TypeOf(q))
 	return d.searchToDoc(d.searcher.Find(q))
@@ -191,8 +190,8 @@ func convert(r *marc.Record) (doc *Doc) {
 		switch v.Header {
 		case 100:
 			y, err := parseYear(v.Value)
-			//if err != nil {
-			if err != nil || y < 1949 {
+			if err != nil {
+				//if err != nil || y < 1949 {
 				return nil
 			}
 			//fmt.Println(y)
@@ -204,6 +203,7 @@ func convert(r *marc.Record) (doc *Doc) {
 			i = i | 2
 		case 606:
 			doc.Terms = marc.ParseAllSubfield(v.Value)
+			//doc.Terms = marc.ParseSubfield(v.Value, 'a')
 			//fmt.Println(doc.Terms)
 			if len(doc.Terms) == 0 {
 				return nil
@@ -213,15 +213,21 @@ func convert(r *marc.Record) (doc *Doc) {
 			doc.Desc = marc.ParseSubfield(v.Value, 'a')
 			i = i | 8
 		case 701:
+			if doc.Author == nil {
+				doc.Author = []string{}
+			}
+			doc.Author = append(doc.Author, marc.ParseSubfield(v.Value, 'a'))
 			if i&16 == 0 {
-				doc.Author = marc.ParseSubfield(v.Value, 'a')
 				i = i | 16
 			}
+		case 856:
+			doc.URL = marc.ParseSubfield(v.Value, 'u')
+			i = i | 32
 		}
 	}
 	if (i & 7) < 7 {
 		fmt.Printf("%d %s %s\r\n", doc.Year, doc.Name, doc.Desc)
-		fmt.Println(doc.Terms)
+		//fmt.Println(doc.Terms)
 		return nil
 	}
 	return doc
@@ -235,7 +241,7 @@ func docForSearch(doc *Doc) *search.Document {
 	return &search.Document{fields}
 }
 
-func readFile(fp string) *DataStore {
+func readFile(fp string, skip int) *DataStore {
 	searcher := search.NewSearcher()
 	ds := &DataStore{
 		searcher:    searcher,
@@ -245,7 +251,7 @@ func readFile(fp string) *DataStore {
 	}
 	f, err := os.Open(fp)
 	check(err)
-	r := marc.NewReader(f)
+	r := marc.NewReader(f, skip)
 	for {
 		rc, err := r.Read()
 		if err == io.EOF {
@@ -284,12 +290,34 @@ func yearJson(w http.ResponseWriter, r *http.Request) {
 func findDoc(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	fmt.Println(q)
-	writeJson(w, ds.Find(q.Get("word"), q.Get("year")))
+	data := map[string]interface{}{}
+	start := getIntParam(q, "start", 0)
+	limit := getIntParam(q, "limit", 50)
+	docs,total := ds.Find(q.Get("word"), q.Get("year"), start, limit)
+	data["docs"] = docs
+	data["total"] = total
+	writeJson(w, data)
+}
+
+func getIntParam(q url.Values, key string, def int) int {
+	str := q.Get("start")
+	res := def
+	if str != ""{
+		res,_ = strconv.Atoi(str)
+		if res < 0{
+			res = 0
+		}
+	}
+	return res
 }
 
 func main() {
 	file := os.Args[1]
-	ds = readFile(file)
+	skip := 0
+	if len(os.Args) > 2 {
+		skip, _ = strconv.Atoi(os.Args[2])
+	}
+	ds = readFile(file, skip)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/data.json", yearJson)

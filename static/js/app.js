@@ -90,13 +90,13 @@
         console.log(year);
         d3.json('search.json?word=' + word + '&year=' + year,function(err, data){
             d3.select('#bookList ul').selectAll('li').remove();
-            var e = d3.select('#bookList ul').selectAll('li').data(data);
+            var e = d3.select('#bookList ul').selectAll('li').data(data.docs);
             e.enter().append('li').attr('class','book-item').html(function(d,i){
                 var words = '';
                 for(var i = 0; i < d.terms.length; i++){
                     words += '<li>' + d.terms[i] + '</li>'
                 }
-                return '<p><span class="name">' + d.name + '</span><i class="year">' + d.year + '</i><span class="author">' + d.author + '</span></p>' +
+                return '<p><span class="name">' + d.name + '</span><i class="year">' + d.year + '</i><span class="author">' + (d.author ? d.author.join(',') : '') + '</span></p>' +
                     '<ul class="words">' + words + '</ul>' +
                     '<p class="desc">' + d.desc + '</p>';
             });

@@ -3,6 +3,8 @@ package marc
 import (
 	"bufio"
 	"bytes"
+	"errors"
+	"fmt"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 	"io"
@@ -12,24 +14,29 @@ import (
 
 const (
 	maxLen          int   = 99999
-	recordSeparator byte  = 29
-	fieldSeparator  byte  = 30
-	subSeparator    byte  = 31
+	recordSeparator byte  = 29 //1d
+	fieldSeparator  byte  = 30 //1e
+	subSeparator    byte  = 31 //1f
 	RecordSeparator int32 = 29
 	FieldSeparator  int32 = 30
 	SubSeparator    int32 = 31
 )
 
+var (
+	ErrMarc = errors.New("MARC read error")
+)
+
 type Reader struct {
 	line int
 	r    *bufio.Reader
+	skip int
 }
 
 type Record struct {
 	Label *RecordLabel
 	Dict  []*RecordDict
 	Field []*RecordField
-    Orig string
+	Orig  string
 }
 
 type RecordLabel struct {
@@ -97,9 +104,10 @@ func ParseAllSubfield(field string) []string {
 	return res
 }
 
-func NewReader(r io.Reader) *Reader {
+func NewReader(r io.Reader, skip int) *Reader {
 	return &Reader{
-		r: bufio.NewReaderSize(r, maxLen),
+		r:    bufio.NewReaderSize(r, maxLen),
+		skip: skip,
 	}
 }
 
@@ -116,29 +124,59 @@ func (r *Reader) Read() (record *Record, err error) {
 	return record, nil
 }
 
-func (r *Reader) readLine()(line []byte, err error){
-    line = []byte{}
-    for{
-        l, err := r.r.ReadBytes('\n')
-        if err != nil {
-            return nil, err
-        }
-        line = append(line, l...)
-        if l[len(l)-2] == '\r'{
-            break
-        }
-    }
-    return line, nil
+func (r *Reader) readLine() (line []byte, err error) {
+	line, err = r.r.ReadBytes(recordSeparator)
+	if err != nil {
+		return nil, err
+	}
+	if r.skip > 0 {
+		_, err = r.r.Discard(r.skip)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return line, nil
+}
+
+func (r *Reader) readRecord() (record *Record, err error) {
+	r.line++
+	record = &Record{}
+	record.Label, err = r.readLabel()
+	line := make([]byte, record.Label.Length)
+	other := line[24:len(line)]
+	ol, err := r.r.Read(other)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("read other: ", ol)
+	/*
+		if len(other) != ol {
+			return nil, ErrMarc
+		}*/
+	record.Orig, _ = decode(line)
+	if err != nil {
+		return nil, err
+	}
+	ds := 0
+	record.Dict, ds, err = r.parseDict(line)
+	if err != nil {
+		return nil, err
+	}
+	record.Field, err = r.parseField(record.Dict, line[ds:len(line)])
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
 }
 
 func (r *Reader) parseRecord() (record *Record, err error) {
 	r.line++
 	record = &Record{}
-    line, err := r.readLine()
-    if err != nil{
-        return nil, err
-    }
-    record.Orig, _ = decode(line)
+	line, err := r.readLine()
+	if err != nil {
+		return nil, err
+	}
+	record.Orig, _ = decode(line)
 	record.Label, err = r.parseLabel(line)
 	if err != nil {
 		return nil, err
@@ -203,12 +241,27 @@ func (r *Reader) parseDict(line []byte) (dict []*RecordDict, ds int, err error) 
 	return dict, i, nil
 }
 
+func (r *Reader) readLabel() (label *RecordLabel, err error) {
+	lb := make([]byte, 24)
+	l, err := r.r.Read(lb)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("read label: ", l)
+	/*
+		if l != 24 {
+			return nil, ErrMarc
+		}*/
+	return r.parseLabel(lb)
+}
+
 func (r *Reader) parseLabel(line []byte) (label *RecordLabel, err error) {
 	label = &RecordLabel{}
 	label.Length, err = strconv.Atoi(string(line[:5]))
 	if err != nil {
 		return nil, err
 	}
+	//fmt.Println("record length: ", label.Length)
 	label.dataStart, err = strconv.Atoi(string(line[12:17]))
 	if err != nil {
 		return nil, err
