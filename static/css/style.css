@@ -24,6 +24,9 @@ input[type=submit],button{
 ul{
     list-style-type:none;
 }
+.hidden {
+    display: none !important;
+}
 #timeline{
     position:relative;
     border-bottom:1px solid #a8e9e2;
@@ -88,6 +91,12 @@ path.line{
 #bookList header{
     margin-bottom:30px;
 }
+.book-item a{
+    text-decoration: none;
+}
+.book-item a .name{
+    color: #00ad9b;
+}
 .book-item .name{
     font-size:1.2em;
 }
@@ -138,4 +147,41 @@ ul.words{
 }
 .search select{
     height:25px;
+}
+.pagination{
+    display: inline-block;
+    padding-left: 0;
+    margin: 20px 0 10px 0;
+    border-radius: 4px;
+}
+.pagination>li{
+    display:inline;
+}
+.pagination>li>a,.pagination>li>span{
+    position: relative;
+    float: left;
+    padding: 5px 10px;
+    line-height: 1.42857143;
+    margin-left: -1px;
+    color: #00ad9b;
+    text-decoration: none;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    cursor:pointer;
+}
+.pagination>li:first-child>a, .pagination>li:first-child>span {
+    margin-left: 0;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+.pagination>li:last-child>a, .pagination>li:last-child>span {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+.pagination>.active>a, .pagination>.active>a:focus, .pagination>.active>a:hover, .pagination>.active>span, .pagination>.active>span:focus, .pagination>.active>span:hover {
+    z-index: 3;
+    color: #fff;
+    cursor: default;
+    background-color: #00ad9b;
+    border-color: #00ad9b;
 }

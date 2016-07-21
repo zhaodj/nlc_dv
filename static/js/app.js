@@ -1,4 +1,7 @@
 (function(){
+    var defPage = 1;
+    var defSize = 50;
+
     var timelineData;
     var margin = {top:40, right:40, bottom:40, left:40};
     var kWidth = 400, kHeight = 400;
@@ -71,7 +74,8 @@
             .attr('y',yKeywordPos + 14)
             .text(d.keywords[0].value)
             .on('click',function(){
-                addWordCloud(d.keywords);
+                addWordCloud(d);
+                search(d3.select(this).text(), d.year, defPage, defSize);
             });
 
         g.append('circle')
@@ -84,27 +88,67 @@
 
     }
 
-    function search(word,year){
+    function search(word,year,page,limit){
         d3.select('#bookList form input[name=word]').property('value', word);
-        d3.select('#bookList form select[name=word]').property('value', year);
-        console.log(year);
-        d3.json('search.json?word=' + word + '&year=' + year,function(err, data){
-            d3.select('#bookList ul').selectAll('li').remove();
-            var e = d3.select('#bookList ul').selectAll('li').data(data.docs);
+        d3.select('#bookList form select[name=year]').property('value', year);
+        var start = (page - 1) * limit;
+        d3.json('search.json?word=' + word + '&year=' + year + '&start=' + start + '&limit=' + limit, function(err, data){
+            d3.select('#bookList ul.data-list').selectAll('li').remove();
+            var e = d3.select('#bookList ul.data-list').selectAll('li').data(data.docs);
             e.enter().append('li').attr('class','book-item').html(function(d,i){
                 var words = '';
                 for(var i = 0; i < d.terms.length; i++){
                     words += '<li>' + d.terms[i] + '</li>'
                 }
-                return '<p><span class="name">' + d.name + '</span><i class="year">' + d.year + '</i><span class="author">' + (d.author ? d.author.join(',') : '') + '</span></p>' +
+                return '<p><a target="_blank" href="' + (d.url ? d.url : '#') + '"><span class="name">' + d.name + '</span></a><i class="year">' + d.year + '</i><span class="author">' + (d.author ? d.author.join(',') : '') + '</span></p>' +
                     '<ul class="words">' + words + '</ul>' +
                     '<p class="desc">' + d.desc + '</p>';
             });
-            d3.selectAll('#bookList .book-item li').on('click',function(){
+            d3.selectAll('#bookList .book-item li').on('click',function(d){
                 var text = d3.select(this).text();
-                search(text);
+                search(text, '', defPage, limit);
             });
+            resetPager(page, limit, data.total);
         });
+    }
+
+    function searchPage(page, size){
+        var word = d3.select('#bookList form').select('input[name=word]').property('value')||'';
+        var year = d3.select('#bookList form').select('select[name=year]').property('value')||'';
+        search(word, year, page, size);
+    }
+
+    function searchWord(word, page, size){
+        var year = d3.select('#bookList form').select('select[name=year]').property('value')||'';
+        search(word, year, page, size);
+    }
+
+    function resetPager(page, size, total){
+        var pagination = d3.select('nav .pagination');
+        pagination.selectAll('li').remove();
+        if(size >= total){
+            pagination.classed('hidden', true);
+        }else{
+            pagination.classed('hidden', false);
+            var tp = Math.ceil(total/size);
+            var pd = [];
+            for(var i = 1; i <= tp; i++){
+                pd.push(i)
+            }
+            var e = pagination.selectAll('li')
+                .data(pd)
+                .enter()
+                .append('li').attr('class', function(d){
+                    return d == page ? 'active' : '';
+                }).html(function(d){
+                    return '<span>' + d + '</span>';
+                }).on('click',function(d){
+                    var li = d3.select(this);
+                    if(!li.classed('active')){
+                        searchPage(d, size);
+                    }
+                });
+        }
     }
 
     function draw(data) {
@@ -122,7 +166,7 @@
             })
             .style("opacity", 1e-6)
             .on('click',function(e){
-                search(e.text,'');
+                searchWord(e.text, defPage, defSize);
             })
             .transition()
             .duration(1000)
@@ -131,7 +175,8 @@
         text.exit().remove();
     }
 
-    function addWordCloud(keywords){
+    function addWordCloud(data){
+        var keywords = data.keywords;
         fontSize.domain([keywords[keywords.length-1].count || 1, keywords[0].count])
         words = [];
         layout.words(words).start();
@@ -142,7 +187,7 @@
             .start();
         kcDrawed = true;
         if(!kSearched && keywords.length > 0){
-            search(keywords[0].value,'');
+            search(keywords[0].value, data.year, defPage, defSize);
             kSearched = true;
         }
     }
@@ -196,7 +241,7 @@
             addMarker(d, svg, x, y, i);
         });
         if(!kcDrawed){
-            addWordCloud(data[0].keywords)
+            addWordCloud(data[0])
         }
     }
 
@@ -220,7 +265,7 @@
         d3.event.preventDefault();
         var word = d3.select(this).select('input[name=word]').property('value')||'';
         var year = d3.select(this).select('select[name=year]').property('value')||'';
-        search(word,year);
+        search(word, year, defPage, defSize);
     });
 
     d3.select('#tlScale').on('change',function(){

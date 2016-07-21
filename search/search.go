@@ -257,25 +257,26 @@ func mergeMust(i1 *Index, i2 *Index, start int, limit int) (res *Index) {
 	var cur *IndexItem
 	ci1, ci2 := i1.Item, i2.Item
 	var last *IndexItem
+	i := 0
 	for {
 		if ci1.docId == ci2.docId {
-			if cur == nil {
-				cur = ci1.clone()
-				cur.next = nil
-			} else {
+			if res.Size < start{
+				cur = ci1
+			}else if res.Size == start{
+				res.Item = ci1.clone()
+				cur = res.Item
+				i++
+			}else{
 				cur.next = ci1.clone()
 				cur = cur.next
-				cur.next = nil
+				i++
+			}
+			if i == limit{
+				last = cur
 			}
 			ci1 = ci1.next
 			ci2 = ci2.next
-			if start == res.Size{
-				res.Item = cur
-			}
 			res.Size = res.Size + 1
-			if limit == res.Size{
-				last = cur
-			}
 		} else if ci1.docId < ci2.docId {
 			ci1 = ci1.next
 		} else if ci1.docId > ci2.docId {
@@ -369,12 +370,14 @@ func (s *Searcher) Find(q Query) *SearchResult {
 	if i != nil {
 		res.Total = i.Size
 		ii := i.Item
-		for {
-			res.Docs = append(res.Docs, docs[ii.docId])
-			if ii.next == nil {
-				break
+		if i.Item != nil{
+			for {
+				res.Docs = append(res.Docs, docs[ii.docId])
+				if ii.next == nil {
+					break
+				}
+				ii = ii.next
 			}
-			ii = ii.next
 		}
 	}
 	return res

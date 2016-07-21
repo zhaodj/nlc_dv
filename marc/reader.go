@@ -57,6 +57,11 @@ type RecordField struct {
 
 func ParseSubfield(field string, start int32) string {
 	r := []rune(field)
+	l := len(r)
+	//fmt.Println(field, l)
+	if l <= 2 {
+		return ""
+	}
 	i, j := 2, 2
 	for {
 		if j > i {
@@ -64,12 +69,23 @@ func ParseSubfield(field string, start int32) string {
 				break
 			}
 			j++
-		} else if r[i] == SubSeparator && r[i+1] == start {
-			i += 2
-			j = i + 1
+		} else if r[i] == SubSeparator {
+			if i+1 >= l {
+				return ""
+			}
+			if r[i+1] == start {
+				i += 2
+				j = i + 1
+			} else {
+				i++
+				j++
+			}
 		} else {
 			i++
 			j++
+		}
+		if i >= l || j >= l {
+			return ""
 		}
 	}
 	if j > i {
@@ -133,6 +149,14 @@ func (r *Reader) readLine() (line []byte, err error) {
 		_, err = r.r.Discard(r.skip)
 		if err != nil {
 			return nil, err
+		}
+	}
+	for i := 0; i < len(line); i++ {
+		if line[i] != '\r' && line[i] != '\n' {
+			if i == 0 {
+				break
+			}
+			return line[i:], nil
 		}
 	}
 	return line, nil

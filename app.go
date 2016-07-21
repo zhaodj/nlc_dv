@@ -7,13 +7,13 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 	"nlc_dv/marc"
 	"nlc_dv/search"
 	"os"
 	"reflect"
 	"sort"
 	"strconv"
-	"net/url"
 )
 
 var ds *DataStore
@@ -151,14 +151,14 @@ func (d *DataStore) searchToDoc(sr *search.SearchResult) ([]*Doc, int) {
 
 func (d *DataStore) Find(term string, year string, start int, limit int) ([]*Doc, int) {
 	var q search.Query
-	if term == "" && year == ""{
+	if term == "" && year == "" {
 		return nil, 0
 	}
-	if term == "" && year != ""{
+	if term == "" && year != "" {
 		q = &search.TermPageQuery{search.TermQuery{&search.Term{"year", year}}, start, limit}
-	}else if term != "" && year == ""{
+	} else if term != "" && year == "" {
 		q = &search.TermPageQuery{search.TermQuery{&search.Term{"term", term}}, start, limit}
-	}else{
+	} else {
 		q = &search.BooleanQuery{
 			&search.TermQuery{&search.Term{"term", term}},
 			&search.TermQuery{&search.Term{"year", year}},
@@ -202,9 +202,9 @@ func convert(r *marc.Record) (doc *Doc) {
 			//fmt.Println(doc.Name)
 			i = i | 2
 		case 606:
-			doc.Terms = marc.ParseAllSubfield(v.Value)
-			//doc.Terms = marc.ParseSubfield(v.Value, 'a')
-			//fmt.Println(doc.Terms)
+			//doc.Terms = marc.ParseAllSubfield(v.Value)
+			doc.Terms = []string{marc.ParseSubfield(v.Value, 'a')}
+			//fmt.Println(v.Value, doc.Terms)
 			if len(doc.Terms) == 0 {
 				return nil
 			}
@@ -216,9 +216,12 @@ func convert(r *marc.Record) (doc *Doc) {
 			if doc.Author == nil {
 				doc.Author = []string{}
 			}
-			doc.Author = append(doc.Author, marc.ParseSubfield(v.Value, 'a'))
-			if i&16 == 0 {
-				i = i | 16
+			au := marc.ParseSubfield(v.Value, 'a')
+			if au != "" {
+				doc.Author = append(doc.Author, au)
+				if i&16 == 0 {
+					i = i | 16
+				}
 			}
 		case 856:
 			doc.URL = marc.ParseSubfield(v.Value, 'u')
@@ -282,9 +285,21 @@ func writeJson(w http.ResponseWriter, d interface{}) {
 	w.Write(b)
 }
 
+func limitStatData(data []*YearStat, limit int) []*YearStat{
+	res := make([]*YearStat, len(data))
+	for i, item := range data{
+		if len(item.Keywords) > limit{
+			res[i] = &YearStat{item.Year, item.Quantity, item.Keywords[:limit], item.words}
+		}else{
+			res[i] = item
+		}
+	}
+	return res
+}
+
 func yearJson(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(len(ds.yearStatData))
-	writeJson(w, ds.yearStatData)
+	writeJson(w, limitStatData(ds.yearStatData, 100))
 }
 
 func findDoc(w http.ResponseWriter, r *http.Request) {
@@ -293,18 +308,18 @@ func findDoc(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{}
 	start := getIntParam(q, "start", 0)
 	limit := getIntParam(q, "limit", 50)
-	docs,total := ds.Find(q.Get("word"), q.Get("year"), start, limit)
+	docs, total := ds.Find(q.Get("word"), q.Get("year"), start, limit)
 	data["docs"] = docs
 	data["total"] = total
 	writeJson(w, data)
 }
 
 func getIntParam(q url.Values, key string, def int) int {
-	str := q.Get("start")
+	str := q.Get(key)
 	res := def
-	if str != ""{
-		res,_ = strconv.Atoi(str)
-		if res < 0{
+	if str != "" {
+		res, _ = strconv.Atoi(str)
+		if res < 0 {
 			res = 0
 		}
 	}
