@@ -244,7 +244,7 @@ func docForSearch(doc *Doc) *search.Document {
 	return &search.Document{fields}
 }
 
-func readFile(fp string, skip int) *DataStore {
+func readFile(fp string, skip int, chinese bool) *DataStore {
 	searcher := search.NewSearcher()
 	ds := &DataStore{
 		searcher:    searcher,
@@ -254,7 +254,7 @@ func readFile(fp string, skip int) *DataStore {
 	}
 	f, err := os.Open(fp)
 	check(err)
-	r := marc.NewReader(f, skip)
+	r := marc.NewReader(f, skip, chinese)
 	for {
 		rc, err := r.Read()
 		if err == io.EOF {
@@ -285,12 +285,12 @@ func writeJson(w http.ResponseWriter, d interface{}) {
 	w.Write(b)
 }
 
-func limitStatData(data []*YearStat, limit int) []*YearStat{
+func limitStatData(data []*YearStat, limit int) []*YearStat {
 	res := make([]*YearStat, len(data))
-	for i, item := range data{
-		if len(item.Keywords) > limit{
+	for i, item := range data {
+		if len(item.Keywords) > limit {
 			res[i] = &YearStat{item.Year, item.Quantity, item.Keywords[:limit], item.words}
-		}else{
+		} else {
 			res[i] = item
 		}
 	}
@@ -332,7 +332,7 @@ func main() {
 	if len(os.Args) > 2 {
 		skip, _ = strconv.Atoi(os.Args[2])
 	}
-	ds = readFile(file, skip)
+	ds = readFile(file, skip, false)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/data.json", yearJson)

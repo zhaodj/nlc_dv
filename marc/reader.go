@@ -27,9 +27,10 @@ var (
 )
 
 type Reader struct {
-	line int
-	r    *bufio.Reader
-	skip int
+	line    int
+	r       *bufio.Reader
+	skip    int
+	chinese bool
 }
 
 type Record struct {
@@ -120,10 +121,11 @@ func ParseAllSubfield(field string) []string {
 	return res
 }
 
-func NewReader(r io.Reader, skip int) *Reader {
+func NewReader(r io.Reader, skip int, chinese bool) *Reader {
 	return &Reader{
-		r:    bufio.NewReaderSize(r, maxLen),
-		skip: skip,
+		r:       bufio.NewReaderSize(r, maxLen),
+		skip:    skip,
+		chinese: chinese,
 	}
 }
 
@@ -177,7 +179,7 @@ func (r *Reader) readRecord() (record *Record, err error) {
 		if len(other) != ol {
 			return nil, ErrMarc
 		}*/
-	record.Orig, _ = decode(line)
+	record.Orig, _ = decode(line, r.chinese)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +202,7 @@ func (r *Reader) parseRecord() (record *Record, err error) {
 	if err != nil {
 		return nil, err
 	}
-	record.Orig, _ = decode(line)
+	record.Orig, _ = decode(line, r.chinese)
 	record.Label, err = r.parseLabel(line)
 	if err != nil {
 		return nil, err
@@ -220,7 +222,7 @@ func (r *Reader) parseRecord() (record *Record, err error) {
 func (r *Reader) parseField(dict []*RecordDict, line []byte) (field []*RecordField, err error) {
 	for _, d := range dict {
 		f := line[d.FieldStart : d.FieldStart+d.Length]
-		s, err := decode(f)
+		s, err := decode(f, r.chinese)
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +231,10 @@ func (r *Reader) parseField(dict []*RecordDict, line []byte) (field []*RecordFie
 	return field, nil
 }
 
-func decode(field []byte) (s string, err error) {
+func decode(field []byte, chinese bool) (s string, err error) {
+	if !chinese {
+		return string(field), nil
+	}
 	i := bytes.NewReader(field)
 	o := transform.NewReader(i, simplifiedchinese.GB18030.NewDecoder())
 	d, err := ioutil.ReadAll(o)

@@ -4,19 +4,21 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 	"testing"
 )
 
 func check(e error) {
 	if e != nil {
+		debug.PrintStack()
 		panic(e)
 	}
 }
 
 func TestRead(t *testing.T) {
-	f, err := os.Open("../demo.iso") //../demo.iso 提交-中文图书C-0008
+	f, err := os.Open("../中文图书_to_sunqian.iso") //../demo.iso 提交-中文图书C-0008
 	check(err)
-	r := NewReader(f, 2)
+	r := NewReader(f, 0, false)
 	for {
 		fmt.Println("row")
 		rc, err := r.Read()
