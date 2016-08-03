@@ -14,7 +14,11 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"flag"
 )
+
+var flagSkip int
+var flagUtf8 bool
 
 var ds *DataStore
 
@@ -26,6 +30,7 @@ type Doc struct {
 	Desc   string   `json:"desc"`
 	Author []string `json:"author"`
 	URL    string   `json:"url"`
+	keyword string
 }
 
 type DataStore struct {
@@ -117,8 +122,9 @@ func (d *DataStore) Add(doc *Doc) {
 			d.Lexicon[v] = id
 		}
 		d.searcher.Put(id, d.dn)
-		y.AddWord(v)
+		//y.AddWord(v)
 	}
+	y.AddWord(doc.keyword)
 }
 
 func (d *DataStore) initYearStat() {
@@ -202,13 +208,12 @@ func convert(r *marc.Record) (doc *Doc) {
 			//fmt.Println(doc.Name)
 			i = i | 2
 		case 606:
-			//doc.Terms = marc.ParseAllSubfield(v.Value)
-			doc.Terms = []string{marc.ParseSubfield(v.Value, 'a')}
+			doc.Terms = marc.ParseAllSubfield(v.Value)
+			doc.keyword = marc.ParseSubfield(v.Value, 'a')
 			//fmt.Println(v.Value, doc.Terms)
-			if len(doc.Terms) == 0 {
-				return nil
+			if len(doc.Terms) > 0 {
+				i = i | 4
 			}
-			i = i | 4
 		case 330:
 			doc.Desc = marc.ParseSubfield(v.Value, 'a')
 			i = i | 8
@@ -326,13 +331,20 @@ func getIntParam(q url.Values, key string, def int) int {
 	return res
 }
 
+func initFlag(){
+	flag.IntVar(&flagSkip, "skip", 0, "每条记录解析后需跳过的字节数")
+	flag.BoolVar(&flagUtf8, "utf8", true, "CNMARC文件是否是utf8编码")
+}
+
 func main() {
-	file := os.Args[1]
-	skip := 0
-	if len(os.Args) > 2 {
-		skip, _ = strconv.Atoi(os.Args[2])
+	initFlag()
+	flag.Parse()
+	if flag.NArg() < 1{
+		panic("请输入文件路径")
 	}
-	ds = readFile(file, skip, false)
+	file := flag.Arg(0)
+
+	ds = readFile(file, flagSkip, !flagUtf8)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/data.json", yearJson)
