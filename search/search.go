@@ -271,7 +271,7 @@ func mergeMust(i1 *Index, i2 *Index, start int, limit int) (res *Index) {
 				cur = cur.next
 				i++
 			}
-			if i == limit{
+			if i <= limit{
 				last = cur
 			}
 			ci1 = ci1.next
